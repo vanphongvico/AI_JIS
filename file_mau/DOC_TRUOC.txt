@@ -1,0 +1,34 @@
+CÁC FILE MẪU GIAO KÈM PHẦN MỀM
+==============================
+
+Phần mềm TỰ TÌM các file trong thư mục này khi mở, nên lần đầu dùng không
+cần chọn gì. Muốn dùng file khác thì bấm "📂 Chọn..." ở tab tương ứng.
+
+  Va đập - SCW410 - File mẫu SPC.xlsx
+      Tab 1 Va đập Charpy, khối "Đánh giá độ ổn định SPC".
+      Phần mềm đọc ngưỡng LSL (ô M11), vật liệu (E9), tiêu chuẩn (E10),
+      sản phẩm (E11). Đổi mác thép thì chọn file mẫu của mác thép đó.
+
+  Mẫu báo cáo thử kéo.docx
+      Tab 2 Thử kéo · Bước 2, ô "File Word mẫu báo cáo". Mỗi báo cáo kéo
+      sinh ra là bản nhân của file này, chỉ thay số liệu và ảnh biểu đồ.
+      Muốn đổi mẫu thì sửa file này hoặc chọn file khác (phải giữ 2 bảng và
+      một ảnh biểu đồ).
+
+  Ví dụ - Biểu đồ kéo 25 mẫu.pdf
+  Ví dụ - Số liệu kéo 25 mẫu.xlsx
+      Tab 2 Thử kéo · Bước 2. Một cặp file VÍ DỤ (số liệu giả lập do Bước 1
+      sinh ra) để bấm thử  ▶ GỘP BÁO CÁO  ngay lần đầu. Khi làm thật, chạy
+      Bước 1 thì hai ô này tự thay bằng file vừa sinh.
+
+  Dung sai kích thước.xlsx
+      Tab 3 Kích thước. Danh sách loại / mã sản phẩm và Min/Max từng chỉ tiêu.
+
+  JIS.QT.07.BM.01 Báo cáo đánh giá sự ổn định chất lượng - Kích thước - ISHIZUE.xlsx
+      Tab 3 Kích thước. Biểu mẫu báo cáo xuất ra.
+
+Mẫu báo cáo Word (va đập, thử kéo) và mẫu SPC nằm trong thư mục templates\ —
+phần mềm dùng trực tiếp, KHÔNG sửa các file trong đó.
+
+Nên giữ nguyên tên file. Đổi tên thì phần mềm không tự tìm được nữa, phải
+chọn tay.

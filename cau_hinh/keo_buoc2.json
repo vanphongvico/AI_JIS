@@ -1,0 +1,31 @@
+{
+  "bo": {},
+  "lan_truoc": {
+    "file_pdf": "%PHAN_MEM%\\output\\Keo_Sinh_2026-11-01_10-06-01_1000mau\\BieuDo_1000.pdf",
+    "file_excel": "%PHAN_MEM%\\output\\Keo_Sinh_2026-11-01_10-06-01_1000mau\\SoLieu_1000.xlsx",
+    "file_mau_word": "%PHAN_MEM%\\file_mau\\Mẫu báo cáo thử kéo.docx",
+    "che_do_xuat": "toan_bo",
+    "so_luong": 10,
+    "bat_dau_tu": 1,
+    "nguon_so_lieu": "pdf",
+    "doi_chieu": true,
+    "kieu_ten": "tien_to",
+    "tien_to": "S2-",
+    "so_bat_dau": 1,
+    "so_chu_so": 0,
+    "tieu_chuan": "JIS Z 2241:2011",
+    "d0": 14.0,
+    "dung_sai_d": 0.02,
+    "Lo": 70.0,
+    "Le": 50.0,
+    "he_so_gian_dai": 0.772,
+    "ung_suat_dut": 1005.0,
+    "cach_tinh_z": "tu_luc_dut",
+    "z_min": 53.0,
+    "z_max": 56.0,
+    "dpi": 200,
+    "cat_vien": true,
+    "nen_anh": true,
+    "bo_ghi_chu": "Chart ID"
+  }
+}

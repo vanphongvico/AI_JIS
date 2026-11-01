@@ -1,0 +1,19 @@
+{
+  "bo": {},
+  "lan_truoc": {
+    "file_chuan": "%PHAN_MEM%\\file_mau\\ThanhPhan\\Dữ liệu 2.xlsx",
+    "mac": "SCW480",
+    "file_spc": "%PHAN_MEM%\\file_mau\\ThanhPhan\\JIS.QT.07.BM.01 Báo cáo đánh giá sự ổn định chất lượng - Thành phân hoá - SCW480.xlsx",
+    "file_word": "%PHAN_MEM%\\file_mau\\ThanhPhan\\Kết quả in.docx",
+    "file_th": "%PHAN_MEM%\\file_mau\\ThanhPhan\\Tổng hợp thành phần.xlsx",
+    "so_mau": "1000",
+    "stt": "1",
+    "seed": "",
+    "cpk": "1.33",
+    "user": "Operator",
+    "project": "216955",
+    "gio": "08:00",
+    "tieu_de": "/ Fe 110 / 26101001 / - Element Concentrations",
+    "min_max": {}
+  }
+}

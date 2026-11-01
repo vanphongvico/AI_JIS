@@ -1,0 +1,92 @@
+{
+  "bo": {},
+  "lan_truoc": {
+    "so_luong": 1000,
+    "seed": null,
+    "d0": 14.0,
+    "dung_sai_d": 0.02,
+    "Lo": 70.0,
+    "Le": 50.0,
+    "reL_tb": 300.0,
+    "reL_sd": 4.2,
+    "reH_chenh_min": 28.0,
+    "reH_chenh_max": 45.0,
+    "rm_tb": 550.0,
+    "rm_sd": 4.5,
+    "a_tb": 28.0,
+    "a_sd": 0.85,
+    "z_tb": 30.0,
+    "z_sd": 1.3,
+    "reL_min": 275.0,
+    "rm_min": 480.0,
+    "a_min": 20.0,
+    "reH_min": null,
+    "z_min_spec": null,
+    "cpk_toi_thieu": 1.33,
+    "buoc_nhay": [],
+    "buoc_moi_diem": [
+      1
+    ],
+    "giay_toi_da": 180.0,
+    "bo_qua_luat": [],
+    "z_theo_dien_tich": true,
+    "he_so_gian_dai": 0.772,
+    "ung_suat_dut": 1005.0,
+    "ti_le_fm": 0.669,
+    "feh_pos_tb": 3.88,
+    "feh_pos_sd": 0.05,
+    "fel_lech_tb": 1.0,
+    "fel_lech_sd": 0.06,
+    "dut_duoi_ti_le": 0.84,
+    "dut_tren_ti_le_min": 0.7,
+    "dut_tren_ti_le_max": 0.78,
+    "tien_to_ma": "M",
+    "so_chu_so": 4,
+    "so_bat_dau": 1,
+    "xuat_spc": true,
+    "cot_spc": [
+      "ReL"
+    ],
+    "vat_lieu_spc": "SCW480",
+    "tieu_chuan_ap_dung": "JIS G5102 - 1991",
+    "ten_san_pham": "ISHIZUE/礎",
+    "nguoi_lap": "Vũ Vương Việt",
+    "nguoi_kiem_tra": "Đoàn Ngọc Thoạt",
+    "nguoi_phe_duyet": "Phạm Văn Phong",
+    "day_rieng": [
+      [
+        1,
+        5
+      ],
+      [
+        26,
+        5
+      ],
+      [
+        51,
+        5
+      ],
+      [
+        76,
+        5
+      ],
+      [
+        101,
+        5
+      ],
+      [
+        126,
+        5
+      ],
+      [
+        151,
+        5
+      ],
+      [
+        176,
+        5
+      ]
+    ],
+    "kem_duong_cong": true
+  }
+}

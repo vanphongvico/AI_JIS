@@ -1,0 +1,84 @@
+{
+  "bo": {},
+  "lan_truoc": {
+    "so_luong": 1000,
+    "stt_bat_dau": 1,
+    "tien_to_ma": "",
+    "so_chu_so": 0,
+    "cau_hinh_lan": [
+      {
+        "e_min": 40.0,
+        "e_max": 70.0,
+        "A": [
+          7.0,
+          7.5,
+          8.0,
+          8.5
+        ],
+        "B": [
+          4.5,
+          5.0,
+          5.5
+        ]
+      },
+      {
+        "e_min": 40.0,
+        "e_max": 70.0,
+        "A": [
+          7.0,
+          7.5,
+          8.0,
+          8.5
+        ],
+        "B": [
+          4.5,
+          5.0,
+          5.5
+        ]
+      },
+      {
+        "e_min": 40.0,
+        "e_max": 70.0,
+        "A": [
+          7.0,
+          7.5,
+          8.0,
+          8.5
+        ],
+        "B": [
+          4.5,
+          5.0,
+          5.5
+        ]
+      }
+    ],
+    "e_min": 40.0,
+    "e_max": 70.0,
+    "danh_sach_A": [
+      7.0,
+      7.5,
+      8.0,
+      8.5
+    ],
+    "danh_sach_B": [
+      4.5,
+      5.0,
+      5.5
+    ],
+    "nhiet_do_thu": 0.0,
+    "seed": null,
+    "ngay_thu": "2026-10-31",
+    "nguoi_thu": "Tran Dang Khoa",
+    "nguoi_duyet": "Doan Ngoc Thoat",
+    "tieu_chuan": "JIS Z 2242:2023",
+    "vat_lieu": "Steel",
+    "kich_thuoc_mau": "55x10x10 mm",
+    "sinh_word": true,
+    "sinh_tong_hop": true,
+    "sinh_tong_hop_gon": true,
+    "sinh_spc": true,
+    "file_mau_spc": "%PHAN_MEM%\\file_mau\\Va đập - SCW410 - File mẫu SPC.xlsx",
+    "lsl": 27.0,
+    "cpk_toi_thieu": 1.33
+  }
+}
