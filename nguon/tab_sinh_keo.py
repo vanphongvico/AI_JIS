@@ -244,7 +244,7 @@ class TabSinhKeo(object):
                         variable=self.v_cong).grid(
             row=9, column=0, columnspan=6, sticky="w")
         ttk.Label(k, style="SurfacePhu.TLabel", wraplength=940, justify="left",
-                  text="Bộ luật dùng đủ 8 mục I-chart + 3 mục MR-chart + Cpk, "
+                  text="Bộ luật dùng đủ 8 mục I-chart + 2 mục MR-chart + Cpk, "
                        "đúng như biểu mẫu BÁO CÁO ĐÁNH GIÁ ĐỘ ỔN ĐỊNH CHẤT "
                        "LƯỢNG.\n"
                        "KHÔNG thể bảo đảm mọi cách lấy 25 giá trị — bộ luật "

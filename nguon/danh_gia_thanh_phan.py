@@ -9,11 +9,10 @@ cong thuc file SPC xuat ra (thanh_phan_core.cham), roi:
 
   - xuat file SPC cho tung day bang chinh bo xuat cua tab Sinh
     (xuat_thanh_phan_spc.xuat_spc - da sua 7 loi file mau);
-  - "Sua so cho dat": doi so CUA NGUYEN TO CHUA DAT, chi trong cac day chua
-    dat. So moi nam trong [Min, Max] cua chuan, dung so chu so; Fe tinh lai,
-    Ceq giu trong yeu cau. Ghi de Tong hop, Ket qua in cua mau bi doi (3 lan
-    do moi, trung binh = so moi, giu User/Project/gio) va cac file SPC dang
-    co trong thu muc (xuat lai cho khop so moi).
+  - "Sua cho dat": SAP LAI THU TU cac mau (ca dong mau di cung nhau) cho toi
+    khi cac day dang chon dat - KHONG doi so nao, nen Fe, Ceq va Ket qua in
+    cua tung mau giu nguyen. Ghi de Tong hop (ban goc sao luu vao
+    _truoc_khi_sua/), file SPC cu chuyen vao ban sao luu vi phu thuoc thu tu.
 
 "Mau bat dau" la THU TU DONG trong bang Tong hop (1 = dong dau), giong tab
 danh gia Va dap; STT in tren bang co the khac neu luc sinh STT bat dau khac 1.
@@ -23,6 +22,9 @@ import os
 import re
 import copy
 import random
+import shutil
+import time
+from datetime import datetime
 
 import openpyxl
 
@@ -30,12 +32,10 @@ try:
     import spc_luat
     import thanh_phan_core as tp
     import xuat_thanh_phan_spc as xs
-    import xuat_thanh_phan_word as xw
 except ImportError:
     from . import spc_luat
     from . import thanh_phan_core as tp
     from . import xuat_thanh_phan_spc as xs
-    from . import xuat_thanh_phan_word as xw
 
 TEN_TONG_HOP = "TongHop_ThanhPhan.xlsx"
 SO_DIEM_TOI_DA = 25
@@ -43,11 +43,6 @@ _RE_MAC = re.compile(r"^ThanhPhan_(.+?)_\d{4}-\d{2}-\d{2}_")
 _RE_FILE_DAY = re.compile(r"^DanhGia_SPC_ThanhPhan_(.+)_bd(\d+)_buoc(\d+)_(\d+)mau\.xlsx$")
 _RE_FILE_NHOM = re.compile(r"^DanhGia_SPC_ThanhPhan_(.+)_\d+_mau(\d+)-(\d+)\.xlsx$")
 
-# Tim kiem khi sua so (moi nguyen to): so lan khoi dong lai x so buoc moi lan
-SO_LAN_THU_SUA = 30
-SO_BUOC_SUA = 2500
-# Trong so diem phat: luat/Ceq >> hinh dang bieu do >> so mau bi doi
-P_LUAT, P_HINH, P_DOI = 1000, 10, 1
 
 
 # ---------------------------------------------------------------------------
@@ -238,226 +233,144 @@ def file_spc_trong_thu_muc(d, mac):
 
 
 # ---------------------------------------------------------------------------
-# 4. SUA SO CHO DAT
+# 4. SUA CHO DAT: SAP LAI THU TU MAU (KHONG DOI SO NAO)
 # ---------------------------------------------------------------------------
-def _phat_hinh(X, so_le):
-    """Hinh dang bieu do bieu mau khong cham nhung nhin nhu khong dat (giong luc sinh)."""
-    nua = 0.5 * 10 ** -so_le
-    return (sum(1 for a, b in zip(X, X[1:]) if abs(b - a) < nua) +
-            ("MR9" in tp.loi_hinh_dang(X, so_le)) + tp._so_sat(X, so_le))
+# Truoc day "Sua so cho dat" THAY SO bang so ngau nhien trong Min/Max va viet
+# lai Ket qua in kem 3 lan do tu tao - lam gia so lieu neu file la cua phong
+# thi nghiem. Gio chi doi cho CA DONG mau (STT + moi nguyen to di cung nhau):
+# thanh phan, Fe, Ceq va Ket qua in cua tung mau giu nguyen.
+GIAY_SUA_TOI_DA = 120
 
 
-def _ngoai_ceq(m, ceq):
-    return bool(ceq) and tp._ngoai_ceq(m, ceq)
+def nhan_day(d, vt, ngan=False):
+    """'Mau STT a-b' khi STT cua day lien tiep deu; sau khi sap lai thu tu
+    STT co the khong con lien tiep -> ghi theo dong cua Tong hop."""
+    st = [d["stt"][v - 1] for v in vt]
+    buoc = vt[1] - vt[0] if len(vt) > 1 else 1
+    if all(b - a == buoc for a, b in zip(st, st[1:])):
+        return ("%d–%d" if ngan else "Mẫu STT %d–%d") % (st[0], st[-1])
+    return ("dòng %d–%d" if ngan else "Dòng %d–%d của Tổng hợp") % (vt[0], vt[-1])
 
 
-def _sua_cot(d, nt, P, W, ceq, cpk, rng, ceq_dong=()):
-    """Tim gia tri moi cho nguyen to nt tai cac dong P sao cho moi day trong W
-    dat. Ceq xet o dong bi doi va o ceq_dong. Khong ghi vao d.
-    Tra ve (gia tri {v: x}, so luat con loi, so mau Ceq vuot)."""
-    t, mn, mx, so = nt["ten"], nt["min"], nt["max"], nt["so_le"]
-    lsl, usl = nt["lsl"], nt["usl"]
-    tam, bk = (mn + mx) / 2.0, (mx - mn) / 2.0
-    sg = max(bk / 3.0, 0.6 * 10 ** -so)
-
-    def moi():
-        return round(max(mn, min(mx, rng.gauss(tam, sg))), so)
-
-    def hong(x):
-        return (not tp._la_so(x) or (lsl is not None and x < lsl - 1e-12) or
-                (usl is not None and x > usl + 1e-12))
-
-    goc = {v: d["mau"][v - 1].get(t) for v in P}
-    he_so = dict(tp.HE_SO_CEQ).get(t) if ceq else None
-    nen = {}                                    # Ceq cua mau khi bo nguyen to t
-    if he_so:
-        for v in P:
-            m = dict(d["mau"][v - 1])
-            m.pop(t, None)
-            nen[v] = tp.tinh_ceq(m)
-
-    def ngoai_ceq(v, x):
-        c = nen[v] + x / he_so
-        return ((ceq["usl"] is not None and c > ceq["usl"] + 1e-12) or
-                (ceq["lsl"] is not None and c < ceq["lsl"] - 1e-12))
-
-    def phat(c):
-        luat = hinh = vuot = 0
-        for w in W:
-            X = [c[v] if v in c else d["mau"][v - 1][t] for v in w]
-            luat += len(tp.cham(X, lsl, usl, so, cpk).loi)
-            hinh += _phat_hinh(X, so)
-        if he_so:
-            vuot = sum(1 for v in P if (v in ceq_dong or c[v] != goc[v]) and ngoai_ceq(v, c[v]))
-        doi = sum(1 for v in P if c[v] != goc[v])
-        return (luat + vuot) * P_LUAT + hinh * P_HINH + doi * P_DOI, (luat, vuot)
-
-    tot = None
-    for lan in range(SO_LAN_THU_SUA):
-        # Lan dau giu so cu (chi thay o hong); lan sau sinh moi ca phan duoc doi
-        c = {v: (moi() if hong(goc[v]) else goc[v]) for v in P} if lan == 0 else \
-            {v: moi() for v in P}
-        p, luat = phat(c)
-        for _ in range(SO_BUOC_SUA):
-            if p == 0:
-                break
-            k = rng.random()
-            if k < 0.4 and len(P) >= 2:
-                i, j = rng.sample(P, 2)
-                c2 = dict(c)
-                c2[i], c2[j] = c[j], c[i]
-            elif k < 0.85:
-                c2 = dict(c)
-                c2[rng.choice(P)] = moi()
-            else:                                # tra lai so cu neu duoc
-                lui = [v for v in P if c[v] != goc[v] and not hong(goc[v])]
-                if not lui:
-                    continue
-                c2 = dict(c)
-                v = rng.choice(lui)
-                c2[v] = goc[v]
-            p2, luat2 = phat(c2)
-            if p2 <= p:
-                c, p, luat = c2, p2, luat2
-        if tot is None or p < tot[0]:
-            tot = (p, c, luat)
-        # Ceq vuot co the do nguyen to KHAC dang hong (sua sau) - chi thu lai mot lan
-        if tot[2][0] == 0 and (tot[2][1] == 0 or lan >= 1):
-            break
-    return tot[1], tot[2][0], tot[2][1]
+def _doi_cho(d, goc, i, j):
+    for k in ("mau", "stt"):
+        d[k][i], d[k][j] = d[k][j], d[k][i]
+    goc[i], goc[j] = goc[j], goc[i]
 
 
-def sua(d, ds, ceq, cac_day, cpk=tp.CPK_TOI_THIEU, seed=None):
-    """Sua TRUC TIEP d["mau"] cho moi day trong cac_day dat ca 10 nguyen to.
+def sua_hoan_vi(d, ds, cac_day, cpk=tp.CPK_TOI_THIEU, giay_toi_da=GIAY_SUA_TOI_DA,
+                seed=None, dung=None, tien_do=None):
+    """Sap lai THU TU mau cho toi khi moi day trong cac_day dat ca 10 nguyen to.
 
-    Chi doi nguyen to chua dat, chi o cac dong thuoc day chua dat cua nguyen to
-    do; day chon chong len nhau thi moi day chung dong deu phai dat. Mau bi doi
-    phai co Ceq trong yeu cau; Fe tinh lai.
-    Tra ve {"doi": {(dong, ten): (cu, moi)}, "con_loi": [chu]}.
+    Cac day mac dinh 25 mau (1, 26, 51...) dang dat thi giu dat. Sua truc
+    tiep d["mau"], d["stt"]; d["thu_tu_goc"][k] = chi so dong goc (0-based)
+    cua mau dang dung o vi tri k. Hoan vi khong doi gia tri nao, nen khong
+    sua duoc mau co so ngoai dung sai hoac o trong.
+    Tra ve {"con_hong": [nhan day], "vong", "giay", "doi", "so_khoi"}.
     """
-    rng = random.Random(seed)
+    rnd = random.Random(seed)
     nt = {n["ten"]: n for n in ds}
-    cac_day = [list(w) for w in cac_day]
-    truoc = copy.deepcopy(d["mau"])
-    con_loi = []
+    n = len(d["mau"])
+    goc = d.setdefault("thu_tu_goc", list(range(n)))
 
-    def ap(t, c):
-        for v, x in c.items():
-            d["mau"][v - 1][t] = x
+    def cost(w):
+        return sum(len(_cham_cot([d["mau"][v - 1].get(t) for v in w], nt[t], cpk).loi)
+                   for t in tp.PHAN_TU_SPC)
 
-    for t in tp.PHAN_TU_SPC:
-        hong = [w for w in cac_day if not _cham_cot(_cot(d, t, w), nt[t], cpk).dat]
+    khoi, thay = [], set()
+    for w in cac_day:
+        w = tuple(w)
+        if w not in thay:
+            thay.add(w)
+            khoi.append(w)
+    for s in mac_dinh_bat_dau(n):
+        w = tuple(lay_day(d, s, 1, SO_DIEM_TOI_DA))
+        if w not in thay and cost(w) == 0:
+            thay.add(w)
+            khoi.append(w)
+    thuoc = {}
+    for b, w in enumerate(khoi):
+        for v in w:
+            thuoc.setdefault(v - 1, []).append(b)
+
+    chi_phi = [cost(w) for w in khoi]
+    t0 = time.time()
+    vong = 0
+    while True:
+        hong = [b for b, x in enumerate(chi_phi) if x]
         if not hong:
-            continue
-        P = sorted({v for w in hong for v in w})
-        W = [w for w in cac_day if set(w) & set(P)]
-        c, luat, _vuot = _sua_cot(d, nt[t], P, W, ceq, cpk, rng)
-        ap(t, c)
-        if luat:
-            for w in W:
-                r = _cham_cot(_cot(d, t, w), nt[t], cpk)
-                if not r.dat:
-                    con_loi.append("%s – dãy bắt đầu mẫu %d: %s" % (t, w[0], ", ".join(r.loi)))
-
-    # Ceq: xet sau cung (Ceq ghep tu 7 nguyen to). Mau bi doi ma con vuot thi ha
-    # lan luot tung nguyen to cua Ceq, khong duoc lam hong luat.
-    def doi_dong():
-        return sorted({k + 1 for k in range(len(truoc)) for t in tp.PHAN_TU_SPC
-                       if truoc[k].get(t) != d["mau"][k].get(t)})
-    vuot = [v for v in doi_dong() if _ngoai_ceq(d["mau"][v - 1], ceq)]
-    for t, _h in tp.HE_SO_CEQ:
-        if not vuot:
             break
-        P = sorted({x for w in cac_day if set(w) & set(vuot) for x in w})
-        W = [w for w in cac_day if set(w) & set(P)]
-        c, luat, _v = _sua_cot(d, nt[t], P, W, ceq, cpk, rng, ceq_dong=set(vuot))
-        if not luat:
-            ap(t, c)
-            vuot = [v for v in doi_dong() if _ngoai_ceq(d["mau"][v - 1], ceq)]
-    if vuot:
-        con_loi.append("Ceq vượt yêu cầu %s ở mẫu STT %s" % (
-            ceq["yeu_cau"], ", ".join(str(d["stt"][v - 1]) for v in vuot[:10])))
-
-    doi = {}
-    for v in doi_dong():
-        for t in tp.PHAN_TU_SPC:
-            if truoc[v - 1].get(t) != d["mau"][v - 1].get(t):
-                doi[(v, t)] = (truoc[v - 1].get(t), d["mau"][v - 1][t])
-        if "Fe" in d["mau"][v - 1]:
-            d["mau"][v - 1]["Fe"] = tp.tinh_fe(d["mau"][v - 1])
-    return {"doi": doi, "con_loi": con_loi}
+        giay = time.time() - t0
+        if giay > giay_toi_da or (dung and dung()):
+            break
+        vong += 1
+        if tien_do and vong % 100 == 0:
+            tien_do(len(hong), giay)
+        w = khoi[rnd.choice(hong)]
+        i = rnd.choice(w) - 1
+        j = (rnd.choice(w) - 1) if rnd.random() < 0.6 else rnd.randrange(n)
+        if i == j:
+            continue
+        cham = set(thuoc.get(i, ())) | set(thuoc.get(j, ()))
+        truoc = sum(chi_phi[b] for b in cham)
+        _doi_cho(d, goc, i, j)
+        moi = {b: cost(khoi[b]) for b in cham}
+        if sum(moi.values()) <= truoc:
+            for b, q in moi.items():
+                chi_phi[b] = q
+        else:
+            _doi_cho(d, goc, i, j)
+    return {"con_hong": [nhan_day(d, list(khoi[b])) for b, x in enumerate(chi_phi) if x],
+            "vong": vong, "giay": time.time() - t0, "so_khoi": len(khoi),
+            "doi": sum(1 for k, g in enumerate(goc) if k != g)}
 
 
 # ---------------------------------------------------------------------------
-# 5. GHI LAI THU MUC
+# 5. GHI THU TU MOI
 # ---------------------------------------------------------------------------
-def _ghi_tong_hop(d, doi):
+def ghi_hoan_vi(d):
+    """Ghi thu tu moi vao Tong hop (ca dong di cung nhau; o cong thuc theo dong
+    nhu Ceq de nguyen). Sao luu Tong hop vao _truoc_khi_sua/<thoi diem>/ va
+    CHUYEN cac file SPC cu vao do - chung phu thuoc thu tu nen het hieu luc.
+    Ket qua in giu nguyen: moi file la cua mot STT, so khong doi.
+    Tra ve {"tong_hop", "sao_luu", "spc_cu": [ten file]}."""
+    goc = d.get("thu_tu_goc") or []
+    ra = {"tong_hop": d["file"], "sao_luu": None, "spc_cu": []}
+    if goc == list(range(len(goc))):
+        return ra
+    tm = d["thu_muc"]
+    bk = os.path.join(tm, "_truoc_khi_sua", datetime.now().strftime("%Y-%m-%d_%H-%M-%S_%f"))
+    os.makedirs(bk)
+    shutil.copy2(d["file"], os.path.join(bk, os.path.basename(d["file"])))
+
+    def cong_thuc(v):
+        return isinstance(v, str) and v.startswith("=")
+
     wb = openpyxl.load_workbook(d["file"])
     ws = wb.worksheets[0]
-    for v, t in doi:
-        r = d["hang"][v - 1]
-        ws.cell(r, d["cot"][t]).value = d["mau"][v - 1][t]
-        if "Fe" in d["cot"]:
-            ws.cell(r, d["cot"]["Fe"]).value = d["mau"][v - 1]["Fe"]
+    so_cot = ws.max_column
+    cu = [[(ws.cell(r, c).value, copy.copy(ws.cell(r, c)._style)) for c in range(1, so_cot + 1)]
+          for r in d["hang"]]
+    for k, g in enumerate(goc):
+        for c in range(1, so_cot + 1):
+            o = ws.cell(d["hang"][k], c)
+            v, kieu = cu[g][c - 1]
+            if cong_thuc(o.value) or cong_thuc(v):
+                continue
+            o.value = v
+            o._style = kieu
     wb.save(d["file"])
 
-
-def ghi_lai(d, ds, doi, file_mau_spc, mac, cpk, ngay, thong_tin=None, seed=None):
-    """Ghi de so da sua: Tong hop, Ket qua in cua mau bi doi, file SPC dang co
-    trong thu muc ma co mau bi doi. thong_tin: dict, hoac ham(vi_tri) -> dict
-    (thong tin rieng tung day). Tra ve {"tong_hop", "word", "spc", "canh_bao"}."""
-    ra = {"tong_hop": d["file"], "word": [], "spc": [], "canh_bao": []}
-    if not doi:
-        return ra
-    _ghi_tong_hop(d, doi)
-
-    nt = {n["ten"]: n for n in ds}
-    rng = random.Random(None if seed is None else "%s-in" % seed)
-    thieu = []
-    for v in sorted({v for v, _t in doi}):
-        stt = d["stt"][v - 1]
-        p = os.path.join(d["thu_muc"], "KetQuaIn", "KetQuaIn_%d.docx" % stt)
-        if not os.path.exists(p):
-            thieu.append(stt)
-            continue
-        w = xw.MauWord(p)
-        sl = w.doc_so_lieu()
-        m = d["mau"][v - 1]
-        for vv, t in doi:
-            if vv == v and t in sl:
-                lan, rsd = tp.ba_lan_do(m[t], nt[t]["so_le"], rng)
-                sl[t] = {"lan": lan, "tb": m[t], "rsd": rsd, "so_le": nt[t]["so_le"]}
-        if "Fe" in sl and tp._la_so(m.get("Fe")):
-            sl["Fe"] = tp.fe_ba_lan(sl, m["Fe"])
-        w.ghi_so_lieu(p, sl)
-        ra["word"].append(p)
-    if thieu:
-        ra["canh_bao"].append("Không thấy file Kết quả in của mẫu STT %s — chỉ sửa Tổng hợp."
-                              % ", ".join(str(s) for s in thieu[:10]))
-
-    vt = {v for v, _t in doi}
-    for p, w in file_spc_trong_thu_muc(d, mac):
-        if set(w) & vt:
-            xuat_spc_day(d, ds, w, mac, file_mau_spc, cpk, ngay,
-                         thong_tin(w) if callable(thong_tin) else thong_tin, p)
-            ra["spc"].append(p)
+    for f in sorted(os.listdir(tm)):
+        if f.startswith("DanhGia_SPC_ThanhPhan_") and f.lower().endswith(".xlsx"):
+            shutil.move(os.path.join(tm, f), os.path.join(bk, f))
+            ra["spc_cu"].append(f)
+    with open(os.path.join(bk, "GHI_CHU.txt"), "w", encoding="utf-8") as f:
+        f.write("Ban goc truoc khi sap lai thu tu mau (%s).\n"
+                "Chi doi cho ca dong mau, khong doi so nao. File SPC cu phu thuoc thu "
+                "tu nen da chuyen vao day - can xuat lai.\n"
+                "Vi tri moi -> STT: %s\n" % (os.path.basename(d["file"]),
+                                               ", ".join(str(s) for s in d["stt"])))
+    d["thu_tu_goc"] = list(range(len(goc)))
+    ra["sao_luu"] = bk
     return ra
-
-
-def tom_tat_doi(d, doi, ds):
-    """Dong chu cho nhat ky: 'C: mau 5 0.250 -> 0.152; ...' theo nguyen to."""
-    nt = {n["ten"]: n for n in ds}
-    L = []
-    for t in tp.PHAN_TU_SPC:
-        o = sorted((v, cu, moi) for (v, tt), (cu, moi) in doi.items() if tt == t)
-        if not o:
-            continue
-        so = nt[t]["so_le"]
-
-        def f(x):
-            return ("%.*f" % (so, x)) if tp._la_so(x) else ("(trống)" if x is None else str(x))
-        L.append("  %s — đổi %d mẫu: %s%s" % (
-            t, len(o), "; ".join("STT %d: %s → %s" % (d["stt"][v - 1], f(cu), f(moi))
-                                 for v, cu, moi in o[:6]), " …" if len(o) > 6 else ""))
-    return "\n".join(L)
-

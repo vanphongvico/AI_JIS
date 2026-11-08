@@ -10,8 +10,8 @@ TAB THU KEO - BA BUOC TRONG MOT TAB
 
 Sinh xong o Buoc 1 thi file PDF, Excel va kich thuoc mau tu dien sang Buoc 2,
 dong thoi thu muc vua sinh tu nap vao Buoc 3. Gop xong o Buoc 2 thi thu muc
-bao cao Word duoc dien san vao Buoc 3 (chua doc - doc 1000 file Word lau,
-nguoi dung bam Nap khi can).
+ket qua cung tu nap vao Buoc 3 - Buoc 2 ghi kem SoLieu_<N>.xlsx nen doc
+nhanh, khong phai boc lai tung file Word.
 
 Mot bo cau hinh cua tab nay luu ca Buoc 1 va Buoc 2; Buoc 3 co bo cau hinh
 rieng (thong tin in tren bieu mau SPC).
@@ -78,7 +78,7 @@ class TabThuKeo(object):
         self.danh_gia.dat_san(kq["thu_muc"], nap=True)
 
     def _buoc2_xong(self, thu_muc):
-        self.danh_gia.dat_san(thu_muc, nap=False)
+        self.danh_gia.dat_san(thu_muc, nap=True)
 
     def sang_buoc2(self):
         self.nb.select(1)

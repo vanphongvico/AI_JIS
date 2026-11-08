@@ -144,7 +144,7 @@ class TabBaoCaoSPC(object):
                   text="(chọn thư mục trước)").pack(anchor="w")
 
         self.v_bd = tk.StringVar(value="1")
-        self.v_buoc = tk.StringVar(value="5")
+        self.v_buoc = tk.StringVar(value="1")
         self.v_sd = tk.StringVar(value="25")
         o = [("Mẫu bắt đầu", self.v_bd, 22), ("Bước nhảy", self.v_buoc, 8),
              ("Số điểm", self.v_sd, 8)]
@@ -155,9 +155,6 @@ class TabBaoCaoSPC(object):
                 row=2, column=i * 2 + 1, sticky="w", padx=(0, 20),
                 pady=(10, 0), ipady=2)
         ttk.Label(k, style="SurfacePhu.TLabel", wraplength=920, justify="left",
-                  text="Mẫu bắt đầu khai được nhiều số cách nhau bằng dấu "
-                       "phẩy — ví dụ  1, 26, 51  sẽ ra ba file. Nhân với số "
-                       "cột đã tick thì ra tổng số file.").grid(
                   text="Với Bước nhảy = 1 và nhập 1 mẫu bắt đầu (VD: 1), phần "
                        "mềm tự chia thành các khoảng nối tiếp (1–25, 26–50, "
                        "51–75, 76–100...) để xuất đủ các file đánh giá hết dữ "
@@ -351,8 +348,16 @@ class TabBaoCaoSPC(object):
         ttk.Label(self.khung_cot, text="Giới hạn dưới LSL",
                   style="SurfacePhu.TLabel").grid(row=0, column=2, sticky="w",
                                            padx=(24, 0))
+        # Thu keo: tick san ba cot cua bieu mau (gioi han chay, Rm, A) - dung
+        # nhung cot se duoc cham khi xuat. Loai khac: tick cot dau tien.
+        mac_dinh = {cot[0][0]} if cot else set()
+        if self.loai == "keo":
+            try:
+                mac_dinh = set(tao_spc.cot_bieu_mau_keo(d).values())
+            except dtm.LoiDoc:
+                pass
         for i, (k, u, _nh) in enumerate(cot):
-            self.v_cot[k] = tk.BooleanVar(value=(i == 0))
+            self.v_cot[k] = tk.BooleanVar(value=(k in mac_dinh))
             ttk.Checkbutton(self.khung_cot, text="%s (%s)" % (k, u),
                             variable=self.v_cot[k]).grid(
                 row=i + 1, column=0, columnspan=2, sticky="w", pady=1)
@@ -373,8 +378,6 @@ class TabBaoCaoSPC(object):
         if not self.du_lieu:
             raise dtm.LoiDoc("Chưa chọn thư mục dữ liệu.")
         cot = [k for k, v in self.v_cot.items() if v.get()]
-        if not cot:
-            raise dtm.LoiDoc("Chưa tick cột nào để đánh giá.")
 
         def so(v, ten):
             v = str(v).strip().replace(",", ".")
@@ -394,6 +397,14 @@ class TabBaoCaoSPC(object):
             raise dtm.LoiDoc(
                 "Số điểm phải từ 2 đến 25 — biểu mẫu SPC chỉ chứa được 25 "
                 "điểm. Đang khai %d." % sd)
+        # Thu keo du 25 diem: bieu mau luon cham du ba chi tieu, nen Xem
+        # truoc / Quet / Sua / Tao bao cao deu phai xet dung ba cot do -
+        # truoc day chi xet cot da tick nen Sua bao dat ma Xuat van truot.
+        if self._dung_bieu_mau_keo(sd):
+            bm = list(self._cot_bm().values())
+            cot = bm + [k for k in cot if k not in bm]
+        if not cot:
+            raise dtm.LoiDoc("Chưa tick cột nào để đánh giá.")
         # Neu chi nhap 1 mau bat dau voi buoc nhay 1, tu dong chia thanh cac
         # khoang lien tiep (vd 100 mau, bd=1, buoc=1, sd=25 -> 1, 26, 51, 76)
         if len(bd) == 1 and buoc == 1:
@@ -406,7 +417,7 @@ class TabBaoCaoSPC(object):
         except ValueError:
             raise dtm.LoiDoc("Ô 'Cpk tối thiểu' phải là số.")
         ng = {}
-        for k in cot:
+        for k in self.v_lsl:
             s = str(self.v_lsl[k].get()).strip().replace(",", ".")
             try:
                 ng[k] = spc_luat.so_huu_han(s, "LSL " + k) if s else None
@@ -455,7 +466,7 @@ class TabBaoCaoSPC(object):
                 L.append("  UCLI %.4f / LCLI %.4f   UCLMR %.4f"
                          % (r.ucl_i, r.lcl_i, r.ucl_mr))
                 if r.dat:
-                    L.append("  KẾT LUẬN: ĐẠT cả 11 mục đánh giá")
+                    L.append("  KẾT LUẬN: ĐẠT tất cả các mục đánh giá")
                 else:
                     L.append("  KẾT LUẬN: CHƯA ĐẠT — vi phạm %d mục:"
                              % len(r.loi))
@@ -504,23 +515,15 @@ class TabBaoCaoSPC(object):
             messagebox.showwarning("Thiếu hoặc sai tham số", str(e))
             return
 
-        lua_chon = [(k, s, buoc) for k in cot for s in bd]
         # chi sua khi that su co day chua dat
-        chua = []
-        for k, s, b in lua_chon:
-            try:
-                _i, _g, r = tao_spc.cham_day(self.du_lieu, k, s, b, sd,
-                                             ng.get(k), None, cpk)
-                if not r.dat:
-                    chua.append((k, s, r.loi))
-            except dtm.LoiDoc as e:
-                messagebox.showwarning("Không lấy được dãy", str(e))
-                return
+        chua = self._day_chua_dat(cot, bd, buoc, sd, cpk, ng)
+        if chua is None:
+            return
         if not chua:
             messagebox.showinfo(
                 "Đã đạt sẵn",
                 "Cả %d dãy đang chọn đều đã đạt, không cần sửa gì."
-                % len(lua_chon))
+                % (len(cot) * len(bd)))
             return
 
         mo_ta = "\n".join("   cột %s, bắt đầu %d — vi phạm %s"
@@ -531,12 +534,38 @@ class TabBaoCaoSPC(object):
                 "Phần mềm sẽ SẮP LẠI THỨ TỰ các mẫu trong thư mục cho tới khi "
                 "mọi dãy đang chọn đều đạt mới áp dụng. PDF giữ nguyên các "
                 "trang gốc, sắp theo thứ tự mới.\n\nGiữ nguyên giá trị và mã "
-                "mẫu; MR, sigma, Cpk có thể đổi. Báo cáo SPC/Word cũ được "
-                "lưu vào bản sao và cần xuất lại.\nBản gốc được chép sang thư mục con "
-                "_truoc_khi_sua.\n\nTiếp tục?"
-                % (len(chua), len(lua_chon), mo_ta)):
+                "mẫu; MR, sigma, Cpk có thể đổi. %s\nBản gốc được chép sang "
+                "thư mục con _truoc_khi_sua.\n\nTiếp tục?"
+                % (len(chua), len(cot) * len(bd), mo_ta, self._loi_nhan_word())):
             return
+        self._bat_dau_sua(cot, bd, buoc, sd, cpk, ng, tm)
 
+    def _loi_nhan_word(self):
+        return ("Báo cáo SPC cũ được lưu vào bản sao và cần xuất lại; báo "
+                "cáo Word từng mẫu giữ nguyên (mã và giá trị không đổi).")
+
+    def _day_chua_dat(self, cot, bd, buoc, sd, cpk, ng):
+        """Cham lai moi (cot x diem bat dau). Tra ve list (cot, bat_dau,
+        ma_loi) cua cac day chua dat, hoac None neu khong lay duoc day."""
+        chua = []
+        for k in cot:
+            for s in bd:
+                try:
+                    _i, _g, r = tao_spc.cham_day(self.du_lieu, k, s, buoc, sd,
+                                                 ng.get(k), None, cpk)
+                except dtm.LoiDoc as e:
+                    messagebox.showwarning("Không lấy được dãy", str(e))
+                    return None
+                if not r.dat:
+                    chua.append((k, s, r.loi))
+        return chua
+
+    def _bat_dau_sua(self, cot, bd, buoc, sd, cpk, ng, tm, xuat_sau=False):
+        """Chay sap lai thu tu o nen. xuat_sau=True: sua dat thi tu xuat
+        luon bao cao SPC (nut Tao bao cao goi)."""
+        import sua_du_lieu as sdl
+        lua_chon = [(k, s, buoc) for k in cot for s in bd]
+        self._xuat_sau = xuat_sau
         self.btn_sua.configure(state="disabled", text="Đang sửa...")
         self.dung_sua.clear()
         self.btn_dung_sua.configure(state="normal")
@@ -578,7 +607,13 @@ class TabBaoCaoSPC(object):
         except Exception:
             self.hang_doi.put(("loi_he_thong", traceback.format_exc()))
 
-    def chay(self):
+    def chay(self, da_sua=False):
+        """Danh gia lai du lieu roi xuat bao cao SPC.
+
+        Truoc khi xuat, cham lai moi day se xuat. Co day chua dat thi de
+        nghi tu sap lai thu tu mau (giu nguyen gia tri) cho dat roi moi
+        xuat. da_sua=True: vua sua xong, xuat luon khong hoi lai.
+        """
         try:
             cot, bd, buoc, sd, cpk, ng, cfg, tm = self._thu()
         except dtm.LoiDoc as e:
@@ -588,25 +623,50 @@ class TabBaoCaoSPC(object):
         self._bm = None
         if self._dung_bieu_mau_keo(sd):
             # thu keo du 25 diem: moi diem bat dau mot file theo bieu mau
-            # cua mac, gom ReH - Rm - A; cot khac (Z...) van ra file rieng
+            # cua mac, gom gioi han chay - Rm - A; cot khac (Z...) ra file rieng
             try:
-                trong = set(tao_spc.cot_bieu_mau_keo(self.du_lieu).values())
-                ng_bm = {}       # LSL theo o tren man hinh, ke ca cot khong tick
-                for k, var in self.v_lsl.items():
-                    s = str(var.get()).strip().replace(",", ".")
-                    try:
-                        ng_bm[k] = float(s) if s else None
-                    except ValueError:
-                        raise dtm.LoiDoc("Ô LSL của cột %s phải là số. Đang "
-                                         "là: %s" % (k, s))
+                cot_bm = self._cot_bm()
             except dtm.LoiDoc as e:
                 messagebox.showwarning("Thiếu hoặc sai tham số", str(e))
                 return
-            self._bm = (self.v_mac.get(), ng_bm, trong)
+            trong = set(cot_bm.values())
+            self._bm = (self.v_mac.get(), ng, trong, cot_bm["ReH"])
             tong = (1 + len([k for k in cot if k not in trong])) * len(bd)
-        if tong > 20 and not messagebox.askyesno(
-                "Nhiều file", "Sẽ sinh %d file báo cáo SPC.\n\nTiếp tục?"
-                              % tong):
+
+        chua = self._day_chua_dat(cot, bd, buoc, sd, cpk, ng)
+        if chua is None:
+            return
+        if chua and not da_sua:
+            mo_ta = "\n".join("   cột %s, bắt đầu %d — vi phạm %s"
+                              % (k, s, ", ".join(l)) for k, s, l in chua[:8])
+            if len(chua) > 8:
+                mo_ta += "\n   ... và %d dãy khác" % (len(chua) - 8)
+            dau = ("Đánh giá lại: %d/%d dãy CHƯA ĐẠT:\n\n%s\n\n"
+                   % (len(chua), len(cot) * len(bd), mo_ta))
+            if os.path.isdir(self.v_tm.get().strip()):
+                tl = messagebox.askyesnocancel(
+                    "Phát hiện dãy chưa đạt",
+                    dau + "• Yes: tự SẮP LẠI THỨ TỰ mẫu cho đạt rồi xuất %d "
+                    "file (giữ nguyên giá trị và mã mẫu; bản gốc chép sang "
+                    "_truoc_khi_sua; %s)\n"
+                    "• No: xuất luôn với dữ liệu hiện tại (file ghi rõ chưa "
+                    "đạt)\n• Cancel: huỷ" % (tong, self._loi_nhan_word()))
+                if tl is None:
+                    return
+                if tl:
+                    self._bat_dau_sua(cot, bd, buoc, sd, cpk, ng, tm,
+                                      xuat_sau=True)
+                    return
+            elif not messagebox.askyesno(
+                    "Phát hiện dãy chưa đạt",
+                    dau + "Nguồn là một file lẻ nên không tự sửa được (chỉ "
+                    "sửa được khi chọn cả thư mục kết quả).\n\nVẫn xuất %d "
+                    "file với dữ liệu hiện tại?" % tong):
+                return
+        elif tong > 20 and not da_sua and not messagebox.askyesno(
+                "Nhiều file", "Đánh giá lại: cả %d dãy đều ĐẠT.\n\nSẽ sinh "
+                              "%d file báo cáo SPC. Tiếp tục?"
+                              % (len(cot) * len(bd), tong)):
             return
         self.btn.configure(state="disabled", text="Đang tạo...")
         self._ghi("Đang tạo %d file báo cáo SPC...\n" % tong, xoa=True)
@@ -614,6 +674,14 @@ class TabBaoCaoSPC(object):
             target=self._chay_nen,
             args=(cot, bd, buoc, sd, cpk, ng, cfg, tm), daemon=True).start()
         self.me.after(150, self._kiem_tra)
+
+    def _cot_bm(self):
+        """Ba cot cua bieu mau keo. Hang gioi han chay lay ReL khi nguoi
+        dung tick ReL ma bo tick ReH; con lai uu tien ReH."""
+        def tick(k):
+            return k in self.v_cot and self.v_cot[k].get()
+        chay = "ReL" if tick("ReL") and not tick("ReH") else None
+        return tao_spc.cot_bieu_mau_keo(self.du_lieu, chay)
 
     def _dung_bieu_mau_keo(self, so_diem):
         """Thu keo va du 25 diem thi xuat theo bieu mau cua mac vat lieu
@@ -629,9 +697,10 @@ class TabBaoCaoSPC(object):
                 self.hang_doi.put(("td", (i, n)))
             kq = []
             if getattr(self, "_bm", None):
-                mac, ng_bm, trong = self._bm
+                mac, ng_bm, trong, chay = self._bm
                 kq = tao_spc.sinh_bieu_mau_keo(
-                    self.du_lieu, mac, bd, buoc, tm, cfg, ng_bm, cpk, td)
+                    self.du_lieu, mac, bd, buoc, tm, cfg, ng_bm, cpk, td,
+                    chay)
                 cot = [k for k in cot if k not in trong]
             if cot:
                 kq += tao_spc.sinh_nhieu(self.du_lieu, cot, bd, buoc, tm, cfg,
@@ -661,8 +730,21 @@ class TabBaoCaoSPC(object):
                     tom, tm, con = dl
                     self._tra_nut()
                     self._ghi(tom + "\n", xoa=True)
-                    self._nap(tm)          # doc lai du lieu vua sua
+                    # doc lai du lieu vua sua, giu nguyen cot tick va LSL
+                    tick = dict((k, v.get()) for k, v in self.v_cot.items())
+                    lsl = dict((k, v.get()) for k, v in self.v_lsl.items())
+                    self._nap(tm)
+                    for k, v in tick.items():
+                        if k in self.v_cot:
+                            self.v_cot[k].set(v)
+                    for k, v in lsl.items():
+                        if k in self.v_lsl:
+                            self.v_lsl[k].set(v)
                     self._ghi(tom + "\n\nĐã đọc lại dữ liệu sau khi sửa.\n")
+                    xuat_sau, self._xuat_sau = getattr(self, "_xuat_sau", False), False
+                    if xuat_sau and not con and self.du_lieu:
+                        self.me.after(100, lambda: self.chay(da_sua=True))
+                        return
                     if con:
                         messagebox.showwarning(
                             "Chưa xong",
@@ -681,25 +763,28 @@ class TabBaoCaoSPC(object):
                     self._ghi(tao_spc.bao_cao_chu(kq)
                               + "\nThư mục: %s\n" % tm, xoa=True)
                     hong = sum(1 for k in kq if not k["spc"].dat)
+                    so_file = len(set(k["file"] for k in kq))
                     if hong:
                         messagebox.showwarning(
                             "Có dãy chưa đạt",
-                            "Đã tạo %d file, trong đó %d dãy CHƯA ĐẠT.\n\n"
-                            "Chi tiết từng mục vi phạm ở khung Kết quả. Dùng "
-                            "nút 'Quét mọi điểm bắt đầu' để tìm dãy đạt."
-                            % (len(kq), hong))
+                            "Đã tạo %d file (%d dãy chỉ tiêu), trong đó %d "
+                            "dãy CHƯA ĐẠT.\n\nChi tiết từng mục vi phạm ở "
+                            "khung Kết quả."
+                            % (so_file, len(kq), hong))
                     elif messagebox.askyesno(
                             "Xong", "Đã tạo %d file báo cáo SPC, cả %d dãy đều ĐẠT.\n\n"
                                     "Mở thư mục bây giờ?"
-                                    % (len(set(k["file"] for k in kq)), len(kq))):
+                                    % (so_file, len(kq))):
                         self.mo_thu_muc()
                     tiep = False
                 elif loai == "loi":
+                    self._xuat_sau = False
                     self._tra_nut()
                     self._ghi("KHÔNG TẠO ĐƯỢC:\n\n" + dl + "\n", xoa=True)
                     messagebox.showerror("Không tạo được", dl)
                     tiep = False
                 elif loai == "loi_he_thong":
+                    self._xuat_sau = False
                     self._tra_nut()
                     self._ghi("LỖI KHÔNG MONG ĐỢI:\n\n" + dl, xoa=True)
                     messagebox.showerror("Lỗi", "Có lỗi ngoài dự kiến. Chi tiết ở khung Kết quả.")

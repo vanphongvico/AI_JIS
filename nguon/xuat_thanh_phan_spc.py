@@ -285,9 +285,9 @@ def _bang_nang_luc(sh, r, on_dinh):
             sh.chu("R%d" % d, _CHU_CAP[d][cap])
     nx, hd = spc.ket_luan_nang_luc(r, on_dinh)
     for ten, ref in spc.O_HANH_DONG.items():
-        sh.chu(ref, "☑" if ten == hd else "☐")
-    sh.chu("C93", "%s. Hành động đề xuất: %s. Kết luận tại lúc xuất - sửa số liệu/"
-                  "ngưỡng trong Excel cần đánh giá và xuất lại." % (nx, hd))
+        sh.chu(ref, "☐")
+    sh.xoa("C93")  # de trong nhan xet trong vung in #
+
 
 
 def _ten_trong_bieu_do(x, ten):
@@ -431,5 +431,5 @@ def xuat_spc(duong_dan_mau, duong_dan_xuat, mau_nhom, ds, spc_nhom, mac,
         for info in infos:
             if info.filename == "xl/calcChain.xml":
                 continue
-            o.writestr(info, parts[info.filename], compress_type=zipfile.ZIP_DEFLATED)
+            o.writestr(info, spc_bao_cao.bo_tick_vml_ctrl_bytes(info.filename, parts[info.filename]), compress_type=zipfile.ZIP_DEFLATED)
     return duong_dan_xuat

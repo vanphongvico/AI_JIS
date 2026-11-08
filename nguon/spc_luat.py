@@ -16,6 +16,11 @@ Module nay CHI TINH VA CHAM DIEM, khong sinh file. Dung chung cho:
 Hai muc MR-chart trong bieu mau ghi bang loi van, khong kem nguong so.
 Nguong dung o day khai o MR2_SO_DIEM / MR3_SO_DIEM / MR3_HE_SO ngay duoi,
 sua mot cho la doi ca phan mem.
+
+MR3 ("dao dong dot ngot keo dai") CHI DE THAM KHAO: bieu mau khong co o tick
+cho muc nay va nguong la do phan mem tu dat, nen MR3 KHONG tinh vao ket luan
+DAT / KHONG DAT (truoc day co tinh: bao cao hien moi o deu dat ma ket luan
+lai khong dat). Ket qua MR3 nam o KetQuaSPC.mr3 de in ghi chu.
 """
 
 import math
@@ -48,7 +53,7 @@ TEN_LUAT = {
     "I8": "8 diem lien tiep nam ben ngoai vung C",
     "MR1": "Diem vuot UCLMR",
     "MR2": "6 diem MR lien tiep tang dan hoac giam dan",
-    "MR3": "Dao dong dot ngot keo dai",
+    "MR3": "Dao dong dot ngot keo dai (chi tham khao)",
     "Cpk": "Cpk chua dat nguong",
     "SPEC": "Co so do nam ngoai gioi han nghiem thu LSL/USL",
     "SIGMA": "Khong du bien thien de danh gia nang luc",
@@ -90,7 +95,8 @@ class KetQuaSPC(object):
     """Chi so I-MR va danh sach ma luat bi vi pham."""
 
     __slots__ = ("n", "X", "MR", "xb", "mrb", "sigma", "ucl_i", "lcl_i",
-                 "ucl_mr", "lcl_mr", "lsl", "usl", "cpk", "cp", "ca", "loi")
+                 "ucl_mr", "lcl_mr", "lsl", "usl", "cpk", "cp", "ca", "loi",
+                 "mr3")
 
     def __init__(self, **kw):
         for k, v in kw.items():
@@ -123,7 +129,8 @@ def tinh(X, lsl=None, usl=None):
     r = KetQuaSPC(n=n, X=list(X), MR=MR, xb=xb, mrb=mrb, sigma=sg,
                   ucl_i=xb + 3 * sg, lcl_i=xb - 3 * sg,
                   ucl_mr=D4 * mrb, lcl_mr=0.0,
-                  lsl=lsl, usl=usl, cpk=None, cp=None, ca=None, loi=[])
+                  lsl=lsl, usl=usl, cpk=None, cp=None, ca=None, loi=[],
+                  mr3=False)
     if sg > 0:
         phia = []
         if lsl is not None:
@@ -252,12 +259,12 @@ def cham(X, lsl=None, usl=None, cpk_toi_thieu=1.33, bo_qua=()):
         if max(run, giam) >= MR2_SO_DIEM:
             loi.append("MR2"); break
 
-    # --- MR3: dao dong dot ngot keo dai ---
+    # --- MR3: dao dong dot ngot keo dai - CHI THAM KHAO, khong vao loi ---
     run = 0; nguong = MR3_HE_SO * r.mrb
     for m in r.MR:
         run = run + 1 if m > nguong else 0
         if run >= MR3_SO_DIEM:
-            loi.append("MR3"); break
+            r.mr3 = True; break
 
     # --- Danh gia nang luc ---
     if r.cpk is not None and r.cpk < cpk_toi_thieu:

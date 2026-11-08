@@ -97,6 +97,8 @@ def sinh_bao_cao(d, ten_cot, bat_dau, buoc, thu_muc, cfg=None, so_diem=25,
         "ucl_mr": r.ucl_mr, "lcl_mr": 0.0, "lsl": c["lsl"], "usl": usl,
         "cpk": r.cpk,
         "cp": r.cp, "ca": r.ca})
+    import spc_bao_cao
+    spc_bao_cao.lam_sach_tick_file(p)
     return p, idx, gt, r
 
 
@@ -128,13 +130,15 @@ def sinh_nhieu(d, cac_cot, cac_bat_dau, buoc, thu_muc, cfg=None, so_diem=25,
 SO_DIEM_BIEU_MAU_KEO = 25
 
 
-def cot_bieu_mau_keo(d):
+def cot_bieu_mau_keo(d, chay=None):
     """Cot du lieu dua vao ba chi tieu cua bieu mau thu keo.
 
     Tra ve {"ReH": ten cot nguon, "Rm": "Rm", "A": "A"}. Hang gioi han chay
-    lay ReH; du lieu khong co ReH thi lay ReL. Thieu chi tieu nao -> LoiDoc.
+    lay `chay` neu khai ("ReH"/"ReL") va du lieu co cot do; khong thi lay
+    ReH, du lieu khong co ReH thi lay ReL. Thieu chi tieu nao -> LoiDoc.
     """
-    chay = next((k for k in ("ReH", "ReL") if k in d["cot"]), None)
+    uu_tien = (chay,) if chay in ("ReH", "ReL") else ()
+    chay = next((k for k in uu_tien + ("ReH", "ReL") if k in d["cot"]), None)
     thieu = [t for t, k in (("giới hạn chảy (ReH/ReL)", chay),
                             ("Rm", "Rm" if "Rm" in d["cot"] else None),
                             ("A", "A" if "A" in d["cot"] else None)) if not k]
@@ -151,7 +155,8 @@ def ten_file_keo(mac, bat_dau, buoc):
 
 
 def sinh_bieu_mau_keo(d, mac, cac_bat_dau, buoc, thu_muc, cfg=None,
-                      nguong=None, cpk_toi_thieu=1.33, tien_do=None):
+                      nguong=None, cpk_toi_thieu=1.33, tien_do=None,
+                      chay=None):
     """Thu keo: moi diem bat dau MOT file theo bieu mau cua mac vat lieu
     (SCW480 / SCW410), gom ca ba chi tieu gioi han chay - Rm - A.
 
@@ -161,7 +166,7 @@ def sinh_bieu_mau_keo(d, mac, cac_bat_dau, buoc, thu_muc, cfg=None,
     """
     import xuat_spc_keo
 
-    cot = cot_bieu_mau_keo(d)
+    cot = cot_bieu_mau_keo(d, chay)
     mac_ng = dtm.MAC_KEO.get(mac) or {}
     nguong = nguong or {}
     lsl = {}
@@ -206,7 +211,7 @@ def bao_cao_chu(kq_list):
                  % (r.xb, r.mrb, r.sigma,
                     ("   Cpk %.3f" % r.cpk) if r.cpk is not None else ""))
         if r.dat:
-            L.append("   KET LUAN: DAT ca 11 muc danh gia")
+            L.append("   KET LUAN: DAT tat ca cac muc danh gia")
         else:
             L.append("   KET LUAN: CHUA DAT - vi pham %d muc:" % len(r.loi))
             for m in r.loi:

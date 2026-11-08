@@ -214,7 +214,7 @@ def xuat(mac, gia_tri, nguong, cfg, duong_dan, nhan_chay="ReH"):
             if info.filename == "xl/calcChain.xml":
                 continue
             out.writestr(info, thay[info.filename].encode("utf-8")
-                         if info.filename in thay else z.read(info.filename),
+                         if info.filename in thay else spc_bao_cao.bo_tick_vml_ctrl_bytes(info.filename, z.read(info.filename)),
                          compress_type=zipfile.ZIP_DEFLATED)
     z.close()
     os.replace(tam, duong_dan)

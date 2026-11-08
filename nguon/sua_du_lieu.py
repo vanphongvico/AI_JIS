@@ -240,6 +240,9 @@ def xay_rang_buoc(d, lua_chon, so_diem=25, giu_bao_dam=True):
                 "Day 'cot %s, bat dau %d, buoc %d' can toi mau thu %d nhung "
                 "du lieu chi co %d mau." % (tc, bd, b, idx[-1] + 1, n))
         them(idx, c)
+    # So khoi nguoi dung chon (dung truoc) - sua() phan biet voi khoi bao
+    # dam cu them vao sau.
+    d["_so_khoi_chon"] = len(ra)
 
     m = d.get("meta") or {}
     if giu_bao_dam and m:
@@ -298,6 +301,16 @@ def sua(d, khoi, cpk_toi_thieu=1.33, giay_toi_da=120, seed=None,
             return spc_luat.dem_loi(v, limit, None, threshold)
         except (ValueError, TypeError):
             return 100
+
+    # Khoi nguoi dung chon: bat buoc dat. Khoi bao dam cu (metadata): chi
+    # giu nhung khoi HIEN DANG DAT - muc dich la khong lam hong thu dang
+    # dat, khong phai bat cuu ca nhung khoi von da truot (vd Buoc 1 het gio
+    # con khoi hong) - bat cuu ca nhung khoi do lam viec sua khong hoi tu.
+    so_chon = d.get("_so_khoi_chon")
+    if so_chon is not None:
+        khoi[:] = khoi[:so_chon] + [
+            (idx, c) for idx, c in khoi[so_chon:]
+            if cost(idx, c, old_limits.get(ten[c]), old_cpk) == 0]
 
     # Giu moi cot dang dat tren cac day dang chon va cac nhom lien tiep.
     protect = set()
@@ -460,7 +473,16 @@ def ghi_lai(d, danh_lai_ma=False, tien_do=None):
             with open(os.path.join(stage, name), "w", encoding="utf-8") as f:
                 json.dump(value, f, ensure_ascii=False, indent=2)
             result["file_da_ghi"].append(os.path.join(stage, name))
-        note = "DA SAP LAI THU TU. Bao cao SPC/Word/bang gon cu da luu tai " + backup + ". Can xuat lai bao cao.\nCpk va gioi han I-MR co the thay doi theo thu tu.\n"
+        # Moi bao cao Word la cua MOT mau (keo: Tensile_<ma>.docx, va dap:
+        # KetQua_<ma>.docx; so cua chinh mau do) - hoan vi giu nguyen ma va
+        # gia tri tung mau nen bao cao Word van dung, khong xoa. Chi bao cao
+        # SPC va bang gon (phu thuoc thu tu) moi het hieu luc.
+        giu_word = d["loai"] in ("keo", "charpy")
+        note = ("DA SAP LAI THU TU. Bao cao SPC/bang gon%s cu da luu tai %s. Can xuat lai bao cao SPC.\n"
+                % ("" if giu_word else "/Word", backup))
+        if giu_word:
+            note += "Bao cao Word tung mau (BaoCao/*_<ma mau>.docx) giu nguyen: ma va gia tri tung mau khong doi.\n"
+        note += "Cpk va gioi han I-MR co the thay doi theo thu tu.\n"
         with open(os.path.join(stage, "SAU_KHI_SUA.txt"), "w", encoding="utf-8") as f:
             f.write(note)
         result["file_da_ghi"].append(os.path.join(stage, "SAU_KHI_SUA.txt"))
@@ -472,8 +494,9 @@ def ghi_lai(d, danh_lai_ma=False, tien_do=None):
                 replaced.append(os.path.basename(f))
                 shutil.copy2(f, target)
             for name in entries:
-                if (name == "BaoCao" or name.lower().endswith(".docx") or
-                    "SPC" in name or name.startswith("TongHop_VaDap_Gon")) and name not in replaced:
+                word = name == "BaoCao" or name.lower().endswith(".docx")
+                if ((word and not giu_word) or "SPC" in name or
+                        name.startswith("TongHop_VaDap_Gon")) and name not in replaced:
                     # Ban sao hoan chinh da ton tai trong backup.
                     archived.append(name)
                     path = os.path.join(root, name)

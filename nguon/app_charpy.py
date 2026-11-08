@@ -110,9 +110,10 @@ class App:
         f1, f2 = self._tab_con(tab3, "① Sinh dữ liệu & xuất báo cáo",
                                "② Đánh giá SPC")
         self.nb_kich_thuoc = f1.master
-        self.tab_danh_gia_kt = TabDanhGiaKichThuoc(f2, mo_bang_windows)
-        self.tab_kich_thuoc = TabKichThuoc(f1, mo_bang_windows,
-                                           khi_xong=self.tab_danh_gia_kt.dat_san)
+        self.tab_kich_thuoc = TabKichThuoc(f1, mo_bang_windows)
+        self.tab_danh_gia_kt = TabDanhGiaKichThuoc(f2, mo_bang_windows,
+                                                   tab_sinh=self.tab_kich_thuoc)
+        self.tab_kich_thuoc.khi_xong = self.tab_danh_gia_kt.dat_san
         f1, f2 = self._tab_con(tab5, "① Sinh dữ liệu & xuất báo cáo",
                                "② Đánh giá SPC")
         self.nb_thanh_phan = f1.master
@@ -1193,6 +1194,9 @@ class App:
             def td(i, n):
                 self.hang_doi.put(("tien_do", (i, n)))
             kq = core.chay(cfg, tien_do=td)
+            if cfg.get("sinh_spc") and kq.get("thu_muc"):
+                import spc_bao_cao
+                spc_bao_cao.lam_sach_tick_thu_muc(kq["thu_muc"])
             self._luu_lan_truoc(cfg)
             self.hang_doi.put(("xong", kq))
         except core.LoiNghiepVu as e:

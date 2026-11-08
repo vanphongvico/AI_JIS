@@ -3,9 +3,10 @@
 TAB THANH PHAN HOA - BUOC 2: DANH GIA SPC
 =========================================
 Nap thu muc ThanhPhan_... (buoc 1 sinh xong tu nap) hoac file
-TongHop_ThanhPhan.xlsx, chon day mau, cham 10 nguyen to, "Sua so cho dat"
-(ghi de Tong hop + Ket qua in + file SPC trong thu muc) va xuat file SPC
-cho tung day (danh_gia_thanh_phan).
+TongHop_ThanhPhan.xlsx, chon day mau, cham 10 nguyen to, "Sua cho dat"
+(sap lai thu tu mau, khong doi so) va xuat file SPC cho tung day
+(danh_gia_thanh_phan). Nut Tao bao cao danh gia lai truoc khi xuat, day nao
+chua dat thi de nghi sap lai thu tu roi moi xuat.
 
 Yeu cau, Min/Max lay theo bang o buoc 1 neu cung mac (ke ca o da sua),
 khac mac thi lay theo file du lieu chuan.
@@ -122,7 +123,7 @@ class TabDanhGiaThanhPhan(object):
                    command=self.cham).pack(side="left")
         ttk.Button(n, text="⚡ Quét mọi điểm bắt đầu", style="Outline.TButton",
                    command=self.quet).pack(side="left", padx=8)
-        self.btn_sua = ttk.Button(n, text="🛠 Sửa số cho đạt", style="Outline.TButton",
+        self.btn_sua = ttk.Button(n, text="🛠 Sửa cho đạt", style="Outline.TButton",
                                   command=self.sua_so)
         self.btn_sua.pack(side="left")
 
@@ -142,10 +143,10 @@ class TabDanhGiaThanhPhan(object):
         ttk.Label(k, style="SurfacePhu.TLabel", wraplength=920, justify="left",
                   text="Chấm đúng công thức file SPC xuất ra: σ = ROUND(MR̄/1,128; d+2), giới "
                        "hạn làm tròn d+1 (d = số chữ số của nguyên tố), 8 mục I-chart + 2 mục "
-                       "MR-chart + Cpk. “Sửa số cho đạt” chỉ đổi số của nguyên tố chưa đạt "
-                       "trong dãy chưa đạt (trong Min/Max, đúng số chữ số), tính lại Fe, giữ "
-                       "Ceq; rồi GHI ĐÈ Tổng hợp, Kết quả in của mẫu bị đổi và các file SPC "
-                       "trong thư mục.").pack(anchor="w", pady=(4, 0))
+                       "MR-chart + Cpk. “Sửa cho đạt” SẮP LẠI THỨ TỰ các mẫu (cả dòng mẫu "
+                       "đi cùng nhau) cho tới khi các dãy đang chọn đạt — KHÔNG đổi số nào, "
+                       "nên Fe, Ceq và Kết quả in từng mẫu giữ nguyên. Bản gốc Tổng hợp và "
+                       "file SPC cũ chép sang _truoc_khi_sua.").pack(anchor="w", pady=(4, 0))
 
     def _khoi_bieu_mau(self, me):
         c = ui.ModernCard(me, title="Thông tin in trên biểu mẫu SPC", badge_num=3)
@@ -308,8 +309,7 @@ class TabDanhGiaThanhPhan(object):
     def _thong_tin_day(self, ts, vt):
         tt = dict(ts["thong_tin"])
         if not tt.get("du_lieu_danh_gia"):
-            st = ts["d"]["stt"]
-            tt["du_lieu_danh_gia"] = "Mẫu STT %d–%d" % (st[vt[0] - 1], st[vt[-1] - 1])
+            tt["du_lieu_danh_gia"] = dg.nhan_day(ts["d"], vt)
         return tt
 
     # =========================================================== CHAM
@@ -342,7 +342,7 @@ class TabDanhGiaThanhPhan(object):
                     return "-" if v is None else "%.*f" % (so + them, v)
                 self.tree.insert("", "end", iid="%d|%s" % (bd, t),
                                  tags=() if x.dat else ("hong",), values=(
-                    "%d–%d" % (d["stt"][vt[0] - 1], d["stt"][vt[-1] - 1]), t,
+                    dg.nhan_day(d, vt, ngan=True), t,
                     nt[t]["yeu_cau"] if nt[t]["yeu_cau"] is not None else "-",
                     f(x.xb, 1), f(x.sigma, 2), f(x.lcl_i, 1), f(x.ucl_i, 1),
                     "-" if x.cpk is None else "%.2f" % x.cpk,
@@ -350,7 +350,8 @@ class TabDanhGiaThanhPhan(object):
         n = len(ts["day"])
         self.log.ghi("Mác %s · %d dãy — %d dãy đạt cả 10 nguyên tố, %d dãy chưa đạt.\n%s"
                      % (ts["mac"], n, so_dat, n - so_dat,
-                        "Bấm 🛠 Sửa số cho đạt để sửa, hoặc ▶ TẠO BÁO CÁO SPC để xuất file.\n"
+                        "Bấm ▶ TẠO BÁO CÁO SPC — phần mềm sẽ đề nghị sắp lại thứ tự cho đạt "
+                        "rồi xuất.\n"
                         if so_dat < n else "Bấm ▶ TẠO BÁO CÁO SPC để xuất file.\n"),
                      xoa=True, tag="success" if so_dat == n else "warning")
 
@@ -362,8 +363,7 @@ class TabDanhGiaThanhPhan(object):
         vt, r = self.kq.get((int(bd), t), (None, None))
         if r is None:
             return
-        st = self.du_lieu["stt"]
-        L = ["%s · dãy STT %d–%d (%d mẫu)" % (t, st[vt[0] - 1], st[vt[-1] - 1], len(vt)),
+        L = ["%s · %s (%d mẫu)" % (t, dg.nhan_day(self.du_lieu, vt), len(vt)),
              "  LSL %s / USL %s" % ("-" if r.lsl is None else r.lsl, "-" if r.usl is None else r.usl)]
         if "DU_LIEU" in r.loi:
             L.append("  CHƯA ĐẠT: có ô trống hoặc không phải số trong dãy.")
@@ -399,54 +399,65 @@ class TabDanhGiaThanhPhan(object):
         self.log.ghi("\n".join(L) + "\n", xoa=True)
 
     # =========================================================== SUA SO
+    def _day_chua_dat(self, ts):
+        """[(vt, [nguyen to chua dat])] cua cac day dang chon."""
+        ra = []
+        for _b, vt in ts["day"]:
+            r = dg.cham_day(ts["d"], ts["ds"], vt, ts["cpk"])
+            loi = [t for t in tp.PHAN_TU_SPC if not r[t].dat]
+            if loi:
+                ra.append((vt, loi))
+        return ra
+
+    def _mo_ta_chua_dat(self, ts, hong):
+        L = ["   %s: %s" % (dg.nhan_day(ts["d"], vt), ", ".join(loi)) for vt, loi in hong[:10]]
+        if len(hong) > 10:
+            L.append("   … và %d dãy khác" % (len(hong) - 10))
+        return "\n".join(L)
+
+    LOI_NHAN_SUA = ("Phần mềm SẮP LẠI THỨ TỰ các mẫu (cả dòng mẫu đi cùng nhau) — KHÔNG đổi "
+                    "số nào, nên Fe, Ceq và Kết quả in từng mẫu giữ nguyên. Ghi đè Tổng hợp; "
+                    "bản gốc và các file SPC cũ (phụ thuộc thứ tự) chuyển sang _truoc_khi_sua.")
+
     def sua_so(self):
         try:
             ts = self._tham_so()
         except tp.LoiDuLieu as e:
             messagebox.showwarning("Thiếu hoặc sai tham số", str(e))
             return
-        d = ts["d"]
-        cac_day = [vt for _b, vt in ts["day"]]
-        for _p, vt in dg.file_spc_trong_thu_muc(d, ts["mac"]):
-            if vt not in cac_day:
-                cac_day.append(vt)
-        hong = []
-        for vt in cac_day:
-            r = dg.cham_day(d, ts["ds"], vt, ts["cpk"])
-            loi = [t for t in tp.PHAN_TU_SPC if not r[t].dat]
-            if loi:
-                hong.append("   STT %d–%d: %s" % (d["stt"][vt[0] - 1], d["stt"][vt[-1] - 1],
-                                                  ", ".join(loi)))
+        hong = self._day_chua_dat(ts)
         if not hong:
-            messagebox.showinfo("Đã đạt sẵn", "Cả %d dãy (gồm dãy đang chọn và dãy của các file "
-                                              "SPC trong thư mục) đều đã đạt, không cần sửa."
-                                % len(cac_day))
+            messagebox.showinfo("Đã đạt sẵn", "Cả %d dãy đang chọn đều đã đạt, không cần sửa."
+                                % len(ts["day"]))
             return
         if not messagebox.askyesno(
-                "Sửa số cho đạt",
-                "Có %d/%d dãy chưa đạt:\n\n%s\n\nPhần mềm sẽ đổi số của nguyên tố chưa đạt "
-                "(trong Min/Max, đúng số chữ số), tính lại Fe, giữ Ceq trong yêu cầu, rồi GHI "
-                "ĐÈ:\n  • %s\n  • Kết quả in của các mẫu bị đổi\n  • các file SPC trong thư "
-                "mục có mẫu bị đổi\n\nTiếp tục?"
-                % (len(hong), len(cac_day), "\n".join(hong[:10]), os.path.basename(d["file"]))):
+                "Sửa cho đạt",
+                "Có %d/%d dãy chưa đạt:\n\n%s\n\n%s\n\nTiếp tục?"
+                % (len(hong), len(ts["day"]), self._mo_ta_chua_dat(ts, hong), self.LOI_NHAN_SUA)):
             return
-        ts["cac_day"] = cac_day
-        self._bat_nut(False, self.btn_sua, "Đang sửa số…")
-        self.log.ghi("Đang tìm số mới cho các nguyên tố chưa đạt…\n", xoa=True)
+        self._bat_dau_sua(ts)
+
+    def _bat_dau_sua(self, ts, xuat_sau=False):
+        ts["xuat_sau"] = xuat_sau
+        self._bat_nut(False, self.btn_sua, "Đang sắp lại…")
+        self.log.ghi("Đang sắp lại thứ tự mẫu cho các dãy chưa đạt…\n", xoa=True)
         self._chay_nen(self._sua_nen, ts)
         self.me.after(150, self._kiem_tra)
 
     def _sua_nen(self, ts):
         try:
             d = copy.deepcopy(ts["d"])
-            s = dg.sua(d, ts["ds"], ts["ceq"], ts["cac_day"], ts["cpk"])
-            if s["con_loi"]:
-                raise tp.LoiDuLieu("Chưa tìm được bộ số đạt — CHƯA ghi file nào:\n  %s\n\nHãy "
-                                   "nới Min/Max ở bước ① hoặc giảm Cpk tối thiểu."
-                                   % "\n  ".join(s["con_loi"][:10]))
-            ra = dg.ghi_lai(d, ts["ds"], s["doi"], ts["file_spc"], ts["mac"], ts["cpk"],
-                            ts["ngay"], lambda vt: self._thong_tin_day(ts, vt))
-            self.hang_doi.put(("xong_sua", (d, s, ra, ts["ds"])))
+            s = dg.sua_hoan_vi(d, ts["ds"], [vt for _b, vt in ts["day"]], ts["cpk"],
+                               tien_do=lambda con, giay: self.hang_doi.put(("td_sua", (con, giay))))
+            if s["con_hong"]:
+                raise tp.LoiDuLieu(
+                    "Sắp lại thứ tự %.0f giây vẫn còn %d dãy chưa đạt — CHƯA ghi file nào:\n  "
+                    "%s\n\nĐổi thứ tự không sửa được mẫu có số ngoài dung sai / ô trống, hoặc "
+                    "khi bộ số không đủ để mọi dãy cùng đạt Cpk. Hãy kiểm tra số liệu hoặc giảm "
+                    "Cpk tối thiểu." % (s["giay"], len(s["con_hong"]),
+                                        "\n  ".join(s["con_hong"][:10])))
+            ra = dg.ghi_hoan_vi(d)
+            self.hang_doi.put(("xong_sua", (s, ra, ts.get("xuat_sau"))))
         except tp.LoiDuLieu as e:
             self.hang_doi.put(("loi", str(e)))
         except PermissionError as e:
@@ -456,12 +467,28 @@ class TabDanhGiaThanhPhan(object):
             self.hang_doi.put(("loi_he_thong", traceback.format_exc()))
 
     # =========================================================== XUAT
-    def tao_bao_cao(self):
+    def tao_bao_cao(self, da_sua=False):
+        """Danh gia lai roi xuat. Co day chua dat thi de nghi sap lai thu tu
+        mau cho dat roi moi xuat. da_sua=True: vua sap xong, xuat luon."""
         try:
             ts = self._tham_so()
         except tp.LoiDuLieu as e:
             messagebox.showwarning("Thiếu hoặc sai tham số", str(e))
             return
+        hong = [] if da_sua else self._day_chua_dat(ts)
+        if hong:
+            tl = messagebox.askyesnocancel(
+                "Phát hiện dãy chưa đạt",
+                "Đánh giá lại: %d/%d dãy CHƯA ĐẠT:\n\n%s\n\n"
+                "• Yes: tự sắp lại thứ tự cho đạt rồi xuất %d file\n  (%s)\n"
+                "• No: xuất luôn với dữ liệu hiện tại (file tick 'Không đạt')\n• Cancel: huỷ"
+                % (len(hong), len(ts["day"]), self._mo_ta_chua_dat(ts, hong), len(ts["day"]),
+                   self.LOI_NHAN_SUA))
+            if tl is None:
+                return
+            if tl:
+                self._bat_dau_sua(ts, xuat_sau=True)
+                return
         bo_cau_hinh.nho_lan_truoc(KHOA, self.lay_cau_hinh())
         self._bat_nut(False, self.btn, "Đang tạo…")
         self.log.ghi("Đang tạo %d file báo cáo SPC…\n" % len(ts["day"]), xoa=True)
@@ -494,6 +521,9 @@ class TabDanhGiaThanhPhan(object):
                 if loai == "td":
                     self.lbl_td.configure(text="%d / %d" % dl)
                     continue
+                if loai == "td_sua":
+                    self.lbl_td.configure(text="còn %d dãy, %.0fs" % dl)
+                    continue
                 self._bat_nut(True)
                 if loai == "xong_sua":
                     self._bao_sua(*dl)
@@ -510,20 +540,23 @@ class TabDanhGiaThanhPhan(object):
             pass
         self.me.after(150, self._kiem_tra)
 
-    def _bao_sua(self, d, s, ra, ds):
+    def _bao_sua(self, s, ra, xuat_sau=False):
         self._nap(self.v_nguon.get(), giu_day=True)        # doc lai + cham lai
-        so_mau = len({v for v, _t in s["doi"]})
-        L = ["ĐÃ SỬA %d ô số liệu ở %d mẫu:" % (len(s["doi"]), so_mau), dg.tom_tat_doi(d, s["doi"], ds),
-             "", "Đã ghi đè:", "  " + os.path.basename(ra["tong_hop"])]
-        L += ["  KetQuaIn/" + os.path.basename(p) for p in ra["word"][:8]]
-        if len(ra["word"]) > 8:
-            L.append("  … (%d file Kết quả in)" % len(ra["word"]))
-        L += ["  " + os.path.basename(p) for p in ra["spc"]]
-        L += ["⚠ " + c for c in ra["canh_bao"]]
+        L = ["ĐÃ SẮP LẠI THỨ TỰ: đổi chỗ %d mẫu (%d vòng, %.1f giây), %d dãy đều đạt."
+             % (s["doi"], s["vong"], s["giay"], s["so_khoi"]),
+             "Không đổi số nào — Fe, Ceq, Kết quả in từng mẫu giữ nguyên.",
+             "Đã ghi đè: " + os.path.basename(ra["tong_hop"])]
+        if ra["sao_luu"]:
+            L.append("Bản gốc: " + ra["sao_luu"])
+        if ra["spc_cu"]:
+            L.append("Đã chuyển %d file SPC cũ (phụ thuộc thứ tự) vào bản gốc — cần xuất lại."
+                     % len(ra["spc_cu"]))
         self.log.ghi("\n".join(L) + "\n", tag="success")
-        messagebox.showinfo("Đã sửa xong", "Đã đổi %d ô số liệu ở %d mẫu, mọi dãy đều đạt.\n\n"
-                                           "Đã ghi đè Tổng hợp, %d file Kết quả in, %d file SPC."
-                            % (len(s["doi"]), so_mau, len(ra["word"]), len(ra["spc"])))
+        if xuat_sau and self.du_lieu:
+            self.me.after(100, lambda: self.tao_bao_cao(da_sua=True))
+            return
+        messagebox.showinfo("Đã sửa xong", "Đã sắp lại thứ tự %d mẫu, mọi dãy đang chọn đều "
+                                           "đạt.\n\nBấm ▶ TẠO BÁO CÁO SPC để xuất file." % s["doi"])
 
     def _bao_xuat(self, ra):
         st = self.du_lieu["stt"]
@@ -532,14 +565,15 @@ class TabDanhGiaThanhPhan(object):
         L = ["ĐÃ TẠO %d FILE BÁO CÁO SPC — %d dãy đạt, %d dãy chưa đạt" % (len(ra), len(ra) - len(hong), len(hong))]
         for p, vt, spc in ra:
             loi = ["%s(%s)" % (t, ",".join(spc[t].loi)) for t in tp.PHAN_TU_SPC if not spc[t].dat]
-            L.append("  %s  ·  STT %d–%d  ·  %s" % (os.path.basename(p), st[vt[0] - 1], st[vt[-1] - 1],
-                                                 "ĐẠT" if not loi else "CHƯA ĐẠT: " + " ".join(loi)))
+            L.append("  %s  ·  %s  ·  %s" % (os.path.basename(p), dg.nhan_day(self.du_lieu, vt),
+                                             "ĐẠT" if not loi else "CHƯA ĐẠT: " + " ".join(loi)))
         L.append("Thư mục: %s" % self.du_lieu["thu_muc"])
         self.log.ghi("\n".join(L) + "\n", xoa=True, tag="warning" if hong else "success")
         if hong:
             messagebox.showwarning("Có dãy chưa đạt", "Đã tạo %d file, trong đó %d dãy CHƯA ĐẠT "
-                                                     "(file tick 'Không đạt').\n\nBấm 🛠 Sửa số cho "
-                                                     "đạt rồi tạo lại." % (len(ra), len(hong)))
+                                                     "(file tick 'Không đạt').\n\nBấm ▶ TẠO BÁO "
+                                                     "CÁO SPC lần nữa và chọn Yes để sắp lại thứ tự "
+                                                     "cho đạt." % (len(ra), len(hong)))
         elif messagebox.askyesno("Xong", "Đã tạo %d file báo cáo SPC, cả %d dãy đều ĐẠT.\n\n"
                                          "Mở thư mục bây giờ?" % (len(ra), len(ra))):
             self.mo_thu_muc()
@@ -547,7 +581,7 @@ class TabDanhGiaThanhPhan(object):
     def _bat_nut(self, bat, nut=None, chu=None):
         """Bat/tat hai nut chay; nut dang chay (btn | btn_sua) hien chu."""
         self.btn.configure(state="normal" if bat else "disabled", text="▶   TẠO BÁO CÁO SPC")
-        self.btn_sua.configure(state="normal" if bat else "disabled", text="🛠 Sửa số cho đạt")
+        self.btn_sua.configure(state="normal" if bat else "disabled", text="🛠 Sửa cho đạt")
         if nut is not None and chu:
             nut.configure(text=chu)
         if bat:

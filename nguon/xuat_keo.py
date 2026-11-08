@@ -144,7 +144,7 @@ def bao_cao_phu(ds_gia_tri, cfg, con_hong, vong, giay, dung_lai=None):
     L.append("=" * 72)
     L.append("  BANG PHU DANH GIA DO ON DINH SPC")
     L.append("=" * 72)
-    L.append("  Bo luat       : 8 muc I-chart + 3 muc MR-chart + Cpk")
+    L.append("  Bo luat       : 8 muc I-chart + 2 muc MR-chart + Cpk")
     L.append("  Cpk toi thieu : %g" % core._lay(cfg, "cpk_toi_thieu"))
     L.append("  Toi uu thu tu : %d vong, %.1f giay" % (vong, giay))
     L.append("")
